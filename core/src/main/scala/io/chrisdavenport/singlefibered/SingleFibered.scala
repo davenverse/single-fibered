@@ -19,12 +19,12 @@ object SingleFibered {
     * 
     */
   def prepareFunction[F[_]: Concurrent, K, V](f: K => F[V]): F[K => F[V]] = {
-    val keypool: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
+    val state: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
       MapRef.ofShardedImmutableMap(10)
       .map((m: MapRef[F, K, Option[F[Outcome[F, Throwable, V]]]]) => 
         {(k: K) => m(k)}  
       )
-    keypool.map{ r => 
+    state.map{ r => 
       singleFiberedFunction[F, K, V](r, f)
     }
   }
@@ -35,29 +35,29 @@ object SingleFibered {
     * result of that computation
     */
   def prepare[F[_]: Concurrent, V](f: F[V]): F[F[V]] = {
-    val keypool: F[Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
+    val state: F[Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
       Ref[F].of(None)
-    keypool.map{ r => 
+    state.map{ r => 
       singleFibered[F, V](r, f)
     }
   }
 
   /* Useful for SyncIO/IO Context or Unsafe Instantiation */
   def inPrepareFunction[F[_]: Sync, G[_]: Async, K, V](f: K => G[V]): F[K => G[V]] = {
-    val keypool: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
+    val state: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
       MapRef.inShardedImmutableMap[F, G, K, G[Outcome[G, Throwable, V]]](10)
       .map((m: MapRef[G, K, Option[G[Outcome[G, Throwable, V]]]]) => 
         {(k: K) => m(k)}  
       )
-    keypool.map{ r => 
+    state.map{ r => 
       singleFiberedFunction[G, K, V](r, f)
     }
   }
 
   def inPrepare[F[_]: Sync, G[_]: Async, V](f: G[V]): F[G[V]] = {
-    val keypool: F[Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
+    val state: F[Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
       Ref.in[F, G, Option[G[Outcome[G, Throwable, V]]]](None)
-    keypool.map{ r => 
+    state.map{ r => 
       singleFibered[G, V](r, f)
     }
   }
@@ -69,24 +69,24 @@ object SingleFibered {
     * As independent computations utilizing sufficiently broad types 
     */
   def unpreparedFunction[F[_]: Concurrent, K, V]: F[(K => F[V]) => (K => F[V])] = {
-    val keypool: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
+    val state: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
       MapRef.ofShardedImmutableMap(10)
       .map((m: MapRef[F, K, Option[F[Outcome[F, Throwable, V]]]]) => 
         {(k: K) => m(k)}  
       )
-    keypool.map{ r => 
+    state.map{ r => 
       (f: K => F[V]) => singleFiberedFunction[F, K, V](r, f)
     }
   }
 
   /* Useful for SyncIO/IO Context or Unsafe Instantiation */
   def inUnpreparedFunction[F[_]: Sync, G[_]: Async, K, V]: F[(K => G[V]) => (K => G[V])] = {
-    val keypool: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
+    val state: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
       MapRef.inShardedImmutableMap[F, G, K, G[Outcome[G, Throwable, V]]](10)
       .map((m: MapRef[G, K, Option[G[Outcome[G, Throwable, V]]]]) => 
         {(k: K) => m(k)}  
       )
-    keypool.map{ r => 
+    state.map{ r => 
       (f: K => G[V]) => singleFiberedFunction[G, K, V](r, f)
     }
   }
