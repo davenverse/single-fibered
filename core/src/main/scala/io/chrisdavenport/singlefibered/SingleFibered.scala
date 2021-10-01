@@ -19,9 +19,9 @@ object SingleFibered {
     * 
     */
   def prepareFunction[F[_]: Concurrent, K, V](f: K => F[V]): F[K => F[V]] = {
-    val state: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
-      MapRef.ofShardedImmutableMap(10)
-      .map((m: MapRef[F, K, Option[F[Outcome[F, Throwable, V]]]]) => 
+    val state: F[K => Ref[F, Option[F[V]]]] =
+      MapRef.ofShardedImmutableMap[F, K, F[V]](10)
+      .map((m: MapRef[F, K, Option[F[V]]]) =>
         {(k: K) => m(k)}  
       )
     state.map{ r => 
@@ -35,7 +35,7 @@ object SingleFibered {
     * result of that computation
     */
   def prepare[F[_]: Concurrent, V](f: F[V]): F[F[V]] = {
-    val state: F[Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
+    val state: F[Ref[F, Option[F[V]]]] =
       Ref[F].of(None)
     state.map{ r => 
       singleFibered[F, V](r, f)
@@ -44,9 +44,9 @@ object SingleFibered {
 
   /* Useful for SyncIO/IO Context or Unsafe Instantiation */
   def inPrepareFunction[F[_]: Sync, G[_]: Async, K, V](f: K => G[V]): F[K => G[V]] = {
-    val state: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
-      MapRef.inShardedImmutableMap[F, G, K, G[Outcome[G, Throwable, V]]](10)
-      .map((m: MapRef[G, K, Option[G[Outcome[G, Throwable, V]]]]) => 
+    val state: F[K => Ref[G, Option[G[V]]]] =
+      MapRef.inShardedImmutableMap[F, G, K, G[V]](10)
+      .map((m: MapRef[G, K, Option[G[V]]]) =>
         {(k: K) => m(k)}  
       )
     state.map{ r => 
@@ -55,8 +55,8 @@ object SingleFibered {
   }
 
   def inPrepare[F[_]: Sync, G[_]: Async, V](f: G[V]): F[G[V]] = {
-    val state: F[Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
-      Ref.in[F, G, Option[G[Outcome[G, Throwable, V]]]](None)
+    val state: F[Ref[G, Option[G[V]]]] =
+      Ref.in[F, G, Option[G[V]]](None)
     state.map{ r => 
       singleFibered[G, V](r, f)
     }
@@ -69,9 +69,9 @@ object SingleFibered {
     * As independent computations utilizing sufficiently broad types 
     */
   def unpreparedFunction[F[_]: Concurrent, K, V]: F[(K => F[V]) => (K => F[V])] = {
-    val state: F[K => Ref[F, Option[F[Outcome[F, Throwable, V]]]]] = 
-      MapRef.ofShardedImmutableMap(10)
-      .map((m: MapRef[F, K, Option[F[Outcome[F, Throwable, V]]]]) => 
+    val state: F[K => Ref[F, Option[F[V]]]] =
+      MapRef.ofShardedImmutableMap[F, K, F[V]](10)
+      .map((m: MapRef[F, K, Option[F[V]]]) =>
         {(k: K) => m(k)}  
       )
     state.map{ r => 
@@ -81,9 +81,9 @@ object SingleFibered {
 
   /* Useful for SyncIO/IO Context or Unsafe Instantiation */
   def inUnpreparedFunction[F[_]: Sync, G[_]: Async, K, V]: F[(K => G[V]) => (K => G[V])] = {
-    val state: F[K => Ref[G, Option[G[Outcome[G, Throwable, V]]]]] = 
-      MapRef.inShardedImmutableMap[F, G, K, G[Outcome[G, Throwable, V]]](10)
-      .map((m: MapRef[G, K, Option[G[Outcome[G, Throwable, V]]]]) => 
+    val state: F[K => Ref[G, Option[G[V]]]] =
+      MapRef.inShardedImmutableMap[F, G, K, G[V]](10)
+      .map((m: MapRef[G, K, Option[G[V]]]) =>
         {(k: K) => m(k)}  
       )
     state.map{ r => 
@@ -104,62 +104,20 @@ object SingleFibered {
     * If a current computation is running then we wait on the result of that computation.
     */
   def singleFiberedFunction[F[_]: Concurrent, K, V](
-    state: K => Ref[F, Option[F[Outcome[F, Throwable, V]]]],
+    state: K => Ref[F, Option[F[V]]],
     f: K => F[V]
-  ) = {
-    {(k: K) => 
-      Deferred[F, Outcome[F, Throwable, V]].flatMap{d => 
-        Concurrent[F].uncancelable{poll => 
-          state(k)
-            .modify{
-              case s@Some(out) => s -> 
-                poll(out)
-                  .flatMap(embedError(_))
-              case None => 
-                Some(d.get) -> 
-                  Concurrent[F].guaranteeCase(poll(f(k))){
-                    o => state(k).set(None) >> d.complete(o).void 
-                  }
-            }.flatten
-        }
-      }
-    }
-  }
+  ): K => F[V] = (k: K) => singleFibered(state(k), f(k))
 
   def singleFibered[F[_]: Concurrent, V](
-    state: Ref[F, Option[F[Outcome[F, Throwable, V]]]],
+    state: Ref[F, Option[F[V]]],
     f: F[V]
-  ) = {
-    Deferred[F, Outcome[F, Throwable, V]].flatMap{d => 
-      Concurrent[F].uncancelable{poll => 
-        state
-          .modify{
-            case s@Some(out) => s -> 
-              poll(out)
-                .flatMap(embedError(_))
-            case None => 
-              Some(d.get) -> 
-                Concurrent[F].guaranteeCase(poll(f)){
-                  o => state.set(None) >> d.complete(o).void 
-                }
-          }.flatten
-      }
-    }
-  }
-
-  /*
-   * embedError allows the restoration to a normal development flow from an Outcome.
-   *
-   * This can be useful for storing the state of a running computation and then waiters for that
-   * data can act and continue forward on that shared outcome. Cancelation is encoded as a
-   * `CancellationException`.
-   * 
-   * Replace with cats-effect once merged
-   */
-  private def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
-      implicit F: MonadCancel[F, Throwable]): F[A] =
-    outcome.embed(
-      F.raiseError(new java.util.concurrent.CancellationException("Outcome was Canceled via SingleFibered"))
-    )
-
+  ): F[V] =
+    Concurrent[F].memoize(f <* state.set(Option.empty))
+      .flatMap(memd =>
+        state.modify {
+          case s@Some(value) => s -> value
+          case None => memd.some -> memd
+        }
+      )
+      .flatten
 }
