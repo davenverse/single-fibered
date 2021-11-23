@@ -17,7 +17,7 @@ class SingleFiberedSpec extends CatsEffectSuite {
       f <- SingleFibered.prepare(action)
       l <- List.fill(10000)(f.attempt).parSequence
       check = l.sequence
-    } yield assume(check.isRight)
+    } yield assert(check.isRight)
   }
 
 }
