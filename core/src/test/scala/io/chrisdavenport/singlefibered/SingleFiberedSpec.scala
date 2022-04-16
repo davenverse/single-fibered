@@ -11,8 +11,11 @@ class SingleFiberedSpec extends CatsEffectSuite {
     for {
       ref <- Ref[IO].of(0)
       mod = Resource.make(ref.update(_ + 1))(_ => ref.update(_ - 1))
-      action = mod.use(
-        _ => ref.get.flatMap(i => if (i == 1) Applicative[IO].unit else new Throwable("Ack").raiseError[IO, Unit])
+      action = mod.use(_ =>
+        ref.get.flatMap(i =>
+          if (i == 1) Applicative[IO].unit
+          else new Throwable("Ack").raiseError[IO, Unit]
+        )
       )
       f <- SingleFibered.prepare(action)
       l <- List.fill(10000)(f.attempt).parSequence
