@@ -64,6 +64,8 @@ jobs:
       - name: Check that workflows are up to date
         run: sbt --client '++${{ matrix.scala }}; githubWorkflowCheck'
 
+      - run: sbt --client '++${{ matrix.scala }}; scalafmtCheckAll'
+
       - run: sbt --client '++${{ matrix.scala }}; test; mimaReportBinaryIssues'
 
       - if: matrix.scala == '2.13.6'

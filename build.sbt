@@ -6,14 +6,17 @@ ThisBuild / crossScalaVersions := Seq("2.12.14", Scala213, "3.0.2")
 ThisBuild / scalaVersion := Scala213
 
 ThisBuild / testFrameworks += new TestFramework("munit.Framework")
+ThisBuild / githubWorkflowBuild := WorkflowStep.Sbt(
+  List("scalafmtCheckAll")
+) +: (ThisBuild / githubWorkflowBuild).value
 
 val catsV = "2.6.1"
 val catsEffectV = "3.2.9"
 val munitCatsEffectV = "1.0.5"
 
-
 // Projects
-lazy val `single-fibered` = project.in(file("."))
+lazy val `single-fibered` = project
+  .in(file("."))
   .disablePlugins(MimaPlugin)
   .enablePlugins(NoPublishPlugin)
   .aggregate(core.jvm, core.js)
@@ -23,26 +26,25 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
   .in(file("core"))
   .settings(
     name := "single-fibered",
-
     libraryDependencies ++= Seq(
-      "org.typelevel"               %%% "cats-core"                  % catsV,
-      "org.typelevel"               %%% "cats-effect"                % catsEffectV,
-      "io.chrisdavenport"           %%% "mapref"                     % "0.2.0",
-
-      "org.typelevel"               %%% "munit-cats-effect-3"        % munitCatsEffectV         % Test,
-
+      "org.typelevel" %%% "cats-core" % catsV,
+      "org.typelevel" %%% "cats-effect" % catsEffectV,
+      "io.chrisdavenport" %%% "mapref" % "0.2.0",
+      "org.typelevel" %%% "munit-cats-effect-3" % munitCatsEffectV % Test
     )
-  ).jsSettings(
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule)},
+  )
+  .jsSettings(
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
   )
 
-lazy val site = project.in(file("site"))
+lazy val site = project
+  .in(file("site"))
   .disablePlugins(MimaPlugin)
   .enablePlugins(DavenverseMicrositePlugin)
   .dependsOn(core.jvm)
-  .settings{
+  .settings {
     import microsites._
     Seq(
-      micrositeDescription := "Single Fiber Convenience Methods",
+      micrositeDescription := "Single Fiber Convenience Methods"
     )
   }
