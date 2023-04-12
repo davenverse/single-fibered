@@ -2,7 +2,7 @@ package io.chrisdavenport.singlefibered
 
 import cats.syntax.all._
 import cats.effect._
-import io.chrisdavenport.mapref.MapRef
+import cats.effect.std.MapRef
 
 object SingleFibered {
 
