@@ -22,7 +22,7 @@ ThisBuild / crossScalaVersions := Seq("2.12.14", scala213, "3.2.2")
 ThisBuild / testFrameworks += new TestFramework("munit.Framework")
 
 val catsV = "2.9.0"
-val catsEffectV = "3.4.8"
+val catsEffectV = "3.4.9"
 val munitCatsEffectV = "2.0.0-M3"
 
 
