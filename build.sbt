@@ -17,7 +17,7 @@ ThisBuild / testFrameworks += new TestFramework("munit.Framework")
 
 val scala213 = "2.13.8"
 ThisBuild / scalaVersion := scala213
-ThisBuild / crossScalaVersions := Seq("2.12.14", scala213, "3.2.2")
+ThisBuild / crossScalaVersions := Seq("2.12.14", scala213, "3.3.1")
 
 ThisBuild / testFrameworks += new TestFramework("munit.Framework")
 
