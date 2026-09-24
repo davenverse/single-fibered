@@ -10,9 +10,6 @@ ThisBuild / developers := List(
 
 ThisBuild / tlCiReleaseBranches := Seq("main")
 
-// true by default, set to false to publish to s01.oss.sonatype.org
-ThisBuild / tlSonatypeUseLegacyHost := true
-
 ThisBuild / testFrameworks += new TestFramework("munit.Framework")
 
 val scala213 = "2.13.8"
