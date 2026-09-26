@@ -109,7 +109,7 @@
         and the next caller gets a warm result. If your action is expensive enough that you
         would rather abandon it when nobody is waiting, guard it with a timeout inside the
         action itself rather than relying on caller cancelation.</p>
-        <p>Prior to 0.4, cancelation was shared: canceling whichever caller happened to arrive
+        <p>Prior to 0.3.1, cancelation was shared: canceling whichever caller happened to arrive
         first aborted the computation and failed every other caller with a
         <code>CancellationException</code>. Callers that never canceled could be failed by one that
         did.</p>
