@@ -80,6 +80,7 @@
 
   <ul class="nav-list">
     <li class="level1 nav-leaf"><a href="#quick-start">Quick Start</a></li>
+    <li class="level1 nav-leaf"><a href="#cancelation">Cancelation</a></li>
   </ul>
 
   <p class="footer"></p>
@@ -96,6 +97,22 @@
         <pre class="keep-together pdf epub"><code class="nohighlight"><span class="identifier">libraryDependencies</span><span> ++= </span><span class="type-name">Seq</span><span>(
   </span><span class="string-literal">&quot;io.chrisdavenport&quot;</span><span> %% </span><span class="string-literal">&quot;single-fibered&quot;</span><span> % </span><span class="string-literal">&quot;&lt;version&gt;&quot;</span><span>
 )</span></code></pre>
+        
+        <h2 id="cancelation" class="section"><a class="anchor-link left" href="#cancelation"><i class="icofont-laika link">&#xef71;</i></a>Cancelation</h2>
+        <p>Callers of a single-fibered action share one running computation, but they do not
+        share a cancelation fate. The computation runs on its own fiber, so canceling any
+        individual caller detaches only that caller: the computation keeps running and the
+        remaining callers still receive its result.</p>
+        <p>The tradeoff is that the computation runs to completion even once every caller has
+        walked away. For a deduplicated read - a cache fill, a token refresh, a downstream
+        fetch - that is usually what you want, since the work would have happened anyway
+        and the next caller gets a warm result. If your action is expensive enough that you
+        would rather abandon it when nobody is waiting, guard it with a timeout inside the
+        action itself rather than relying on caller cancelation.</p>
+        <p>Prior to 0.4, cancelation was shared: canceling whichever caller happened to arrive
+        first aborted the computation and failed every other caller with a
+        <code>CancellationException</code>. Callers that never canceled could be failed by one that
+        did.</p>
 
         
 <hr class="footer-rule"/>
