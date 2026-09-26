@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        scala: [2.12, 2.13, 3]
+        scala: [2.13, 3]
         java: [temurin@8]
         project: [single-fiberedNative, single-fiberedJVM, single-fiberedJS]
     runs-on: ${{ matrix.os }}
@@ -122,36 +122,6 @@ jobs:
       - name: sbt update
         if: matrix.java == 'temurin@8' && steps.setup-java-temurin-8.outputs.cache-hit == 'false'
         run: sbt +update
-
-      - name: Download target directories (2.12, single-fiberedNative)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12-single-fiberedNative
-
-      - name: Inflate target directories (2.12, single-fiberedNative)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.12, single-fiberedJVM)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12-single-fiberedJVM
-
-      - name: Inflate target directories (2.12, single-fiberedJVM)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
-
-      - name: Download target directories (2.12, single-fiberedJS)
-        uses: actions/download-artifact@v6
-        with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-2.12-single-fiberedJS
-
-      - name: Inflate target directories (2.12, single-fiberedJS)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
 
       - name: Download target directories (2.13, single-fiberedNative)
         uses: actions/download-artifact@v6
@@ -270,7 +240,7 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: site_2.12 site_2.13 site_3 single-fiberednative_2.12 single-fiberednative_2.13 single-fiberednative_3 single-fiberedjvm_2.12 single-fiberedjvm_2.13 single-fiberedjvm_3 single-fiberedjs_2.12 single-fiberedjs_2.13 single-fiberedjs_3
+          modules-ignore: site_2.13 site_3 single-fiberednative_2.13 single-fiberednative_3 single-fiberedjvm_2.13 single-fiberedjvm_3 single-fiberedjs_2.13 single-fiberedjs_3
           configs-ignore: test scala-tool scala-doc-tool test-internal
 
   site:
