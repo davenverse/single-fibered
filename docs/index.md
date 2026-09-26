@@ -25,7 +25,7 @@ and the next caller gets a warm result. If your action is expensive enough that 
 would rather abandon it when nobody is waiting, guard it with a timeout inside the
 action itself rather than relying on caller cancelation.
 
-Prior to 0.4, cancelation was shared: canceling whichever caller happened to arrive
+Prior to 0.3.1, cancelation was shared: canceling whichever caller happened to arrive
 first aborted the computation and failed every other caller with a
 `CancellationException`. Callers that never canceled could be failed by one that
 did.
