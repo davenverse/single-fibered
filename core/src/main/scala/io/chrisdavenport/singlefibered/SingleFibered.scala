@@ -95,31 +95,40 @@ object SingleFibered {
     * This is the core of the single-fibered abstraction
     * Given some way to identify a state for a Key,
     * we can then put ourselves into a conditional execution pattern
-    * 
+    *
     * If no current computation is running we place a deferred in place
-    * for following computations to wait on. And we execute our computation and
-    * guarantee we reset the state and complete the deferred no matter what
-    * the outcome was.
-    * 
+    * for following computations to wait on. We then run the computation on a
+    * detached fiber, which guarantees we reset the state and complete the
+    * deferred no matter what the outcome was. Every caller - including the one
+    * that started it - participates only by awaiting that deferred.
+    *
     * If a current computation is running then we wait on the result of that computation.
+    *
+    * Cancelation is caller-local. Because the shared computation runs on its own
+    * fiber, canceling any individual caller detaches only that caller; it can
+    * neither abort the shared computation nor fail the other callers awaiting it.
+    * The tradeoff is that the computation runs to completion even if every caller
+    * has walked away.
     */
   def singleFiberedFunction[F[_]: Concurrent, K, V](
     state: K => Ref[F, Option[F[Outcome[F, Throwable, V]]]],
     f: K => F[V]
   ) = {
-    {(k: K) => 
-      Deferred[F, Outcome[F, Throwable, V]].flatMap{d => 
-        Concurrent[F].uncancelable{poll => 
+    {(k: K) =>
+      Deferred[F, Outcome[F, Throwable, V]].flatMap{d =>
+        Concurrent[F].uncancelable{poll =>
           state(k)
             .modify{
-              case s@Some(out) => s -> 
+              case s@Some(out) => s ->
                 poll(out)
                   .flatMap(embedError(_))
-              case None => 
-                Some(d.get) -> 
-                  Concurrent[F].guaranteeCase(poll(f(k))){
-                    o => state(k).set(None) >> d.complete(o).void 
-                  }
+              case None =>
+                Some(d.get) ->
+                  runDetached(
+                    Concurrent[F].guaranteeCase(f(k)){
+                      o => state(k).set(None) >> d.complete(o).void
+                    }
+                  ).flatMap(_ => poll(d.get).flatMap(embedError(_)))
             }.flatten
         }
       }
@@ -130,22 +139,41 @@ object SingleFibered {
     state: Ref[F, Option[F[Outcome[F, Throwable, V]]]],
     f: F[V]
   ) = {
-    Deferred[F, Outcome[F, Throwable, V]].flatMap{d => 
-      Concurrent[F].uncancelable{poll => 
+    Deferred[F, Outcome[F, Throwable, V]].flatMap{d =>
+      Concurrent[F].uncancelable{poll =>
         state
           .modify{
-            case s@Some(out) => s -> 
+            case s@Some(out) => s ->
               poll(out)
                 .flatMap(embedError(_))
-            case None => 
-              Some(d.get) -> 
-                Concurrent[F].guaranteeCase(poll(f)){
-                  o => state.set(None) >> d.complete(o).void 
-                }
+            case None =>
+              Some(d.get) ->
+                runDetached(
+                  Concurrent[F].guaranteeCase(f){
+                    o => state.set(None) >> d.complete(o).void
+                  }
+                ).flatMap(_ => poll(d.get).flatMap(embedError(_)))
           }.flatten
       }
     }
   }
+
+  /*
+   * Starts the shared computation on its own fiber so that no individual caller's
+   * cancelation can reach it.
+   *
+   * This must be invoked from inside the uncancelable region and before any `poll`,
+   * so that having committed the `Deferred` to the state we are guaranteed to also
+   * start the fiber that completes it. Were the caller able to be canceled in
+   * between, the key would be left pointing at a `Deferred` nobody will ever
+   * complete, wedging it permanently.
+   *
+   * The outcome is recorded in the `Deferred` by the caller's finalizer, so the
+   * fiber itself is left with nothing to report and is never joined; `attempt`
+   * keeps an errored computation from surfacing as a dangling errored fiber.
+   */
+  private def runDetached[F[_]: Concurrent, A](fa: F[A]): F[Unit] =
+    Concurrent[F].start(Concurrent[F].attempt(fa)).void
 
   /*
    * embedError allows the restoration to a normal development flow from an Outcome.
